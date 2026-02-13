@@ -138,7 +138,7 @@ if st.session_state.current_chat_id and st.session_state.chats[st.session_state.
                     stream = client.chat_completion(
                         messages=[{"role": "system", "content": SYSTEM_PROMPT}] + st.session_state.chats[st.session_state.current_chat_id]["messages"],
                         max_tokens=1500,
-                        temperature=0.2,
+                        temperature=0.4,
                         stream=True
                     )
                     full_resp = ""
