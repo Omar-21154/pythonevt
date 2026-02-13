@@ -128,17 +128,36 @@ if st.session_state.current_chat_id:
         st.rerun()
 
 # AI CAVAB MƏNTİQİ
+
 if st.session_state.current_chat_id and st.session_state.chats[st.session_state.current_chat_id]["messages"]:
     if st.session_state.chats[st.session_state.current_chat_id]["messages"][-1]["role"] == "user":
         with st.chat_message("assistant"):
-            SYSTEM_PROMPT = "Sən ağıllı bir asistansan. İstifadəçi hansı dildə müraciət edərsə, həmin dildə cavab ver."
+            # 1. Gücləndirilmiş Sistem Təlimatı
+            SYSTEM_PROMPT = "Sən Universal AI-san. Mütləq istifadəçinin yazdığı dildə cavab ver. Dilləri qarışdırma."
+            
+            # 2. Nümunələrlə AI-ı "tərbiyə" edirik (Few-shot Prompting)
+            few_shot_context = [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                # İngiliscə nümunə
+                {"role": "user", "content": "Hello"},
+                {"role": "assistant", "content": "Hello! How can I help you today?"},
+                # Azərbaycanca nümunə
+                {"role": "user", "content": "Salam"},
+                {"role": "assistant", "content": "Salam! Sizə necə kömək edə bilərəm?"},
+                # İngiliscə sual nümunəsi
+                {"role": "user", "content": "How are you?"},
+                {"role": "assistant", "content": "I am doing great, thank you for asking! How about you?"}
+            ]
+            
+            # Mövcud söhbət tarixçəsini nümunələrin ardına əlavə edirik
+            full_messages = few_shot_context + st.session_state.chats[st.session_state.current_chat_id]["messages"]
             
             try:
                 def response_generator():
                     stream = client.chat_completion(
-                        messages=[{"role": "system", "content": SYSTEM_PROMPT}] + st.session_state.chats[st.session_state.current_chat_id]["messages"],
+                        messages=full_messages, # Yenilənmiş mesaj siyahısı
                         max_tokens=1500,
-                        temperature=0.4,
+                        temperature=0.3, # Daha dəqiq cavablar üçün temperaturu bir az düşürdüm
                         stream=True
                     )
                     full_resp = ""
@@ -147,6 +166,7 @@ if st.session_state.current_chat_id and st.session_state.chats[st.session_state.
                         if content:
                             full_resp += content
                             yield content
+                    
                     st.session_state.chats[st.session_state.current_chat_id]["messages"].append({"role": "assistant", "content": full_resp})
                     save_data(st.session_state.chats)
 
