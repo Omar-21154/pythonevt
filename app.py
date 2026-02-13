@@ -5,8 +5,7 @@ import json
 import os
 
 # 1. Page Configuration
-st.set_page_config(page_title="Universal AI", page_icon="🌐", layout="wide")
-
+st.set_page_config(page_title="Omar's AI", page_icon="🚀", layout="wide")
 # --- ✨ MODERN VISUALS ---
 st.markdown("""
     <style>
