@@ -4,41 +4,19 @@ import uuid
 import json
 import os
 
-# 1. Səhifə Ayarları
+# 1. Page Configuration
 st.set_page_config(page_title="Universal AI", page_icon="🌐", layout="wide")
 
-# --- ✨ MODERN VİSUAL VƏ HAMARLIQ ---
+# --- ✨ MODERN VISUALS ---
 st.markdown("""
     <style>
-        /* Mesaj animasiyası */
         @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
         .stChatMessage { animation: slideUp 0.4s ease-out; border-radius: 12px; }
-        
-        /* Sidebar düymələri - daha zərif */
-        .stButton button {
-            border-radius: 8px;
-            transition: all 0.2s ease;
-            border: 1px solid rgba(151, 151, 151, 0.1) !important;
-            background-color: transparent;
-        }
-        
-        /* Silmə düyməsi üçün xüsusi stil (balaca və qırmızımtıl hover) */
-        div[data-testid="column"] button:contains("🗑️") {
-            border: none !important;
-            color: #ff4b4b !important;
-            font-size: 14px;
-        }
-        
-        div[data-testid="column"] button:contains("🗑️"):hover {
-            background-color: rgba(255, 75, 75, 0.1) !important;
-        }
-
-        [data-testid="stHeader"] { background-color: rgba(0,0,0,0); }
-        .main { scroll-behavior: smooth; }
+        .stButton button { border-radius: 8px; transition: all 0.2s ease; }
     </style>
 """, unsafe_allow_html=True)
 
-# 2. DAİMİ YADDAŞ
+# 2. DATA MANAGEMENT
 DB_FILE = "chat_history.json"
 
 def load_data():
@@ -54,11 +32,11 @@ def save_data(data):
 
 def create_new_chat():
     new_id = str(uuid.uuid4())
-    st.session_state.chats[new_id] = {"name": "Yeni Söhbət", "messages": []}
+    st.session_state.chats[new_id] = {"name": "New Chat", "messages": []}
     st.session_state.current_chat_id = new_id
     save_data(st.session_state.chats)
 
-# 3. İLKİN YÜKLƏMƏ
+# 3. INITIALIZATION
 if "chats" not in st.session_state:
     st.session_state.chats = load_data()
     if not st.session_state.chats:
@@ -69,107 +47,84 @@ if "chats" not in st.session_state:
 # 4. SIDEBAR
 with st.sidebar:
     st.title("🌐 Universal AI")
-    if st.button("➕ Yeni Çat Başlat", use_container_width=True):
+    if st.button("➕ Start New Chat", use_container_width=True):
         create_new_chat()
         st.rerun()
 
     st.divider()
-    st.write("📜 **Tarixçə**")
+    st.write("📜 **History**")
     
-    # Söhbətləri siyahıla
     for chat_id in list(st.session_state.chats.keys()):
         chat_data = st.session_state.chats[chat_id]
-        
-        # Aktiv çatı vurğulamaq üçün vizual fərq
         is_active = (st.session_state.current_chat_id == chat_id)
         
         col1, col2 = st.columns([0.82, 0.18])
         with col1:
-            btn_label = f"💬 {chat_data['name']}" if is_active else chat_data['name']
+            display_name = "New Chat" if chat_data['name'] == "Yeni Söhbət" else chat_data['name']
+            btn_label = f"💬 {display_name}" if is_active else display_name
             if st.button(btn_label, key=f"btn_{chat_id}", use_container_width=True):
                 st.session_state.current_chat_id = chat_id
                 st.rerun()
         with col2:
             if st.button("🗑️", key=f"del_{chat_id}"):
                 del st.session_state.chats[chat_id]
-                
-                # Əgər heç bir çat qalmayıbsa, dərhal yenisini yarat
-                if not st.session_state.chats:
-                    create_new_chat()
-                else:
-                    # Əgər sildiyimiz aktiv çat idisə, ən sonuncunu seç
-                    if st.session_state.current_chat_id == chat_id:
-                        st.session_state.current_chat_id = list(st.session_state.chats.keys())[-1]
-                
+                if not st.session_state.chats: create_new_chat()
+                elif st.session_state.current_chat_id == chat_id:
+                    st.session_state.current_chat_id = list(st.session_state.chats.keys())[-1]
                 save_data(st.session_state.chats)
                 st.rerun()
 
-# 5. ƏSAS ÇAT SAHƏSİ
+# 5. MAIN INTERFACE
 token = st.secrets.get("HF_TOKEN")
 client = InferenceClient(model="meta-llama/Llama-3.1-8B-Instruct", token=token)
 
 if st.session_state.current_chat_id:
     curr_chat = st.session_state.chats[st.session_state.current_chat_id]
-    
-    st.title(f"🚀 {curr_chat['name']}")
+    title_name = "New Chat" if curr_chat['name'] == "Yeni Söhbət" else curr_chat['name']
+    st.title(f"🚀 {title_name}")
 
     for msg in curr_chat["messages"]:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    if prompt := st.chat_input("Nə soraqlayırsan?"):
+    if prompt := st.chat_input("Ask me anything..."):
         curr_chat["messages"].append({"role": "user", "content": prompt})
-        
-        # Adı ilk mesajla yenilə
         if len(curr_chat["messages"]) == 1:
             curr_chat["name"] = prompt[:20] + "..."
-            
         save_data(st.session_state.chats)
         st.rerun()
 
-# AI CAVAB MƏNTİQİ
-
+# --- 🧠 AI LOGIC WITH CREATOR INFO ---
 if st.session_state.current_chat_id and st.session_state.chats[st.session_state.current_chat_id]["messages"]:
     if st.session_state.chats[st.session_state.current_chat_id]["messages"][-1]["role"] == "user":
         with st.chat_message("assistant"):
-            # 1. Gücləndirilmiş Sistem Təlimatı
-            SYSTEM_PROMPT = "Sən Universal AI-san. Mütləq istifadəçinin yazdığı dildə cavab ver. Dilləri qarışdırma."
+            # BURA ƏLAVƏ EDİLDİ: Bot artıq Öməri (səni) tanıyır!
+            SYSTEM_PROMPT = """You are a helpful AI assistant. 
+            Knowledge: You were developed by Omar (Ömər) using Python and Streamlit. 
+            If anyone asks about your creator or Omar, say: 'Omar is my developer/creator who built me using Python.'
+            Rule: Always respond in the language the user uses."""
             
-            # 2. Nümunələrlə AI-ı "tərbiyə" edirik (Few-shot Prompting)
-            few_shot_context = [
+            few_shot = [
                 {"role": "system", "content": SYSTEM_PROMPT},
-                # İngiliscə nümunə
-                {"role": "user", "content": "Hello"},
-                {"role": "assistant", "content": "Hello! How can I help you today?"},
-                # Azərbaycanca nümunə
-                {"role": "user", "content": "Salam"},
-                {"role": "assistant", "content": "Salam! Sizə necə kömək edə bilərəm?"},
-                # İngiliscə sual nümunəsi
-                {"role": "user", "content": "How are you?"},
-                {"role": "assistant", "content": "I am doing great, thank you for asking! How about you?"}
+                {"role": "user", "content": "Who created you?"},
+                {"role": "assistant", "content": "I was created by Omar using Python and Streamlit."},
+                {"role": "user", "content": "Ömər kimdir?"},
+                {"role": "assistant", "content": "Ömər mənim yaradıcımdır. O məni Python proqramlaşdırma dili və Streamlit kitabxanası vasitəsilə hazırlayıb."}
             ]
             
-            # Mövcud söhbət tarixçəsini nümunələrin ardına əlavə edirik
-            full_messages = few_shot_context + st.session_state.chats[st.session_state.current_chat_id]["messages"]
+            full_msgs = few_shot + st.session_state.chats[st.session_state.current_chat_id]["messages"]
             
             try:
                 def response_generator():
-                    stream = client.chat_completion(
-                        messages=full_messages, # Yenilənmiş mesaj siyahısı
-                        max_tokens=1500,
-                        temperature=0.3, # Daha dəqiq cavablar üçün temperaturu bir az düşürdüm
-                        stream=True
-                    )
+                    stream = client.chat_completion(messages=full_msgs, max_tokens=1500, temperature=0.3, stream=True)
                     full_resp = ""
                     for chunk in stream:
                         content = chunk.choices[0].delta.content
                         if content:
                             full_resp += content
                             yield content
-                    
                     st.session_state.chats[st.session_state.current_chat_id]["messages"].append({"role": "assistant", "content": full_resp})
                     save_data(st.session_state.chats)
-
                 st.write_stream(response_generator())
             except Exception as e:
-                st.error(f"Xəta: {e}")
+                st.error(f"Error: {e}")
