@@ -131,7 +131,7 @@ if st.session_state.current_chat_id:
 if st.session_state.current_chat_id and st.session_state.chats[st.session_state.current_chat_id]["messages"]:
     if st.session_state.chats[st.session_state.current_chat_id]["messages"][-1]["role"] == "user":
         with st.chat_message("assistant"):
-            SYSTEM_PROMPT = "Sən Azərbaycan dilində təmiz və dəqiq cavab verən asistansan. Heç vaxt cavabını digər dillərə tərcümə etmə."
+            SYSTEM_PROMPT = "Sən ağıllı bir asistansan. İstifadəçi hansı dildə müraciət edərsə, həmin dildə cavab ver."
             
             try:
                 def response_generator():
