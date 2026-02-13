@@ -6,6 +6,7 @@ import os
 
 # 1. Page Configuration
 st.set_page_config(page_title="Omar's AI", page_icon="🚀", layout="wide")
+
 # --- ✨ MODERN VISUALS ---
 st.markdown("""
     <style>
@@ -45,7 +46,7 @@ if "chats" not in st.session_state:
 
 # 4. SIDEBAR
 with st.sidebar:
-    st.title("🌐 Universal AI")
+    st.title("🌐 Omar's AI")
     if st.button("➕ Start New Chat", use_container_width=True):
         create_new_chat()
         st.rerun()
@@ -93,22 +94,25 @@ if st.session_state.current_chat_id:
         save_data(st.session_state.chats)
         st.rerun()
 
-# --- 🧠 AI LOGIC WITH CREATOR INFO ---
+# --- 🧠 FIXED AI LOGIC ---
 if st.session_state.current_chat_id and st.session_state.chats[st.session_state.current_chat_id]["messages"]:
     if st.session_state.chats[st.session_state.current_chat_id]["messages"][-1]["role"] == "user":
         with st.chat_message("assistant"):
-            # BURA ƏLAVƏ EDİLDİ: Bot artıq Öməri (səni) tanıyır!
-            SYSTEM_PROMPT = """You are a helpful AI assistant. 
-            Knowledge: You were developed by Omar (Ömər) using Python and Streamlit. 
-            If anyone asks about your creator or Omar, say: 'Omar is my developer/creator who built me using Python.'
-            Rule: Always respond in the language the user uses."""
+            # BU HİSSƏDƏ BÜTÜN MƏNTİQ XƏTALARI DÜZƏLDİLDİ
+            SYSTEM_PROMPT = """You are a highly precise AI assistant. 
+            Creator Info: You were developed by Omar (Ömər). He is your creator.
+            Rules:
+            1. Language: Never confuse 'mənə' (to me) with 'nənə' (grandmother). 
+            2. Clarity: If the user asks for homework help ('mənə ev tapşırığı etməyə kömək et'), provide code solutions.
+            3. Accuracy: Do not make up stories about grandmothers. Stay professional.
+            4. Language Consistency: Always answer in the language used by the user."""
             
             few_shot = [
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": "Who created you?"},
-                {"role": "assistant", "content": "I was created by Omar using Python and Streamlit."},
+                {"role": "user", "content": "mənə ev tapşırığı etməyə kömək edərsən?"},
+                {"role": "assistant", "content": "Bəli, əlbəttə! Sizə hansı fəndən və ya hansı mövzuda ev tapşırığı lazımdır? Zəhmət olmasa sualları göndərin, mən Python kodu və ya izahlarla kömək edim."},
                 {"role": "user", "content": "Ömər kimdir?"},
-                {"role": "assistant", "content": "Ömər mənim yaradıcımdır. O məni Python proqramlaşdırma dili və Streamlit kitabxanası vasitəsilə hazırlayıb."}
+                {"role": "assistant", "content": "Ömər mənim yaradıcımdır. O məni Python proqramlaşdırma dili vasitəsilə hazırlayıb."}
             ]
             
             full_msgs = few_shot + st.session_state.chats[st.session_state.current_chat_id]["messages"]
