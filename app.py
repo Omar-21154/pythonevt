@@ -1,133 +1,122 @@
 import streamlit as st
-from huggingface_hub import InferenceClient
+import google.generativeai as genai
+from PIL import Image
 import uuid
-import json
-import os
 
-# 1. Page Configuration
-st.set_page_config(page_title="Omar's AI", page_icon="🚀", layout="wide")
+# 1. 404 XƏTASINI KÖKÜNDƏN KƏSƏN MODEL YÜKLƏYİCİ
+if "GEMINI_API_KEY" in st.secrets:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    
+    @st.cache_resource
+    def get_model():
+        # Əgər standart ad işləməsə, sistemdə mövcud olan ilk uyğun modeli tapır
+        try:
+            # Sənin mühitində hansı modellər var, onları yoxlayır
+            available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+            if available_models:
+                # Siyahıda 1.5-flash varsa onu seç, yoxdursa birincini götür
+                flash_model = next((m for m in available_models if "1.5-flash" in m), available_models[0])
+                return genai.GenerativeModel(flash_model)
+        except:
+            # Heç nə tapılmasa məcburi bu adı yoxla
+            return genai.GenerativeModel('gemini-1.5-flash')
+    
+    model = get_model()
+else:
+    st.error("API Key tapılmadı! Secrets bölməsinə əlavə edin.")
 
-# --- ✨ MODERN VISUALS ---
+# 2. UI AYARLARI
+st.set_page_config(page_title="Omar's AI", layout="wide")
 st.markdown("""
     <style>
-        @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-        .stChatMessage { animation: slideUp 0.4s ease-out; border-radius: 12px; }
-        .stButton button { border-radius: 8px; transition: all 0.2s ease; }
+    .stApp { background: transparent !important; }
+    .main-container { max-width: 900px; margin: auto; }
+    .stChatInputContainer { padding-bottom: 10px; }
+    /* Şəkil yükləmə qutusunu kiçiltmək */
+    .stFileUploader section { padding: 0px 10px !important; min-height: 80px !important; }
     </style>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-# 2. DATA MANAGEMENT
-DB_FILE = "chat_history.json"
+# 3. YADDAŞ (Session State)
+if "archives" not in st.session_state: st.session_state.archives = {}
+if "active_id" not in st.session_state:
+    uid = str(uuid.uuid4())
+    st.session_state.archives[uid] = {"title": "Yeni Söhbət", "msgs": []}
+    st.session_state.active_id = uid
 
-def load_data():
-    if os.path.exists(DB_FILE):
-        try:
-            with open(DB_FILE, "r", encoding="utf-8") as f: return json.load(f)
-        except: return {}
-    return {}
-
-def save_data(data):
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
-
-def create_new_chat():
-    new_id = str(uuid.uuid4())
-    st.session_state.chats[new_id] = {"name": "New Chat", "messages": []}
-    st.session_state.current_chat_id = new_id
-    save_data(st.session_state.chats)
-
-# 3. INITIALIZATION
-if "chats" not in st.session_state:
-    st.session_state.chats = load_data()
-    if not st.session_state.chats:
-        create_new_chat()
-    else:
-        st.session_state.current_chat_id = list(st.session_state.chats.keys())[-1]
-
-# 4. SIDEBAR
+# 4. SIDEBAR - Arxiv
 with st.sidebar:
-    st.title("🌐 Omar's AI")
-    if st.button("➕ Start New Chat", use_container_width=True):
-        create_new_chat()
+    st.title("🚀 Omar's AI")
+    if st.button("➕ Yeni Söhbət", use_container_width=True):
+        uid = str(uuid.uuid4())
+        st.session_state.archives[uid] = {"title": "Yeni Söhbət", "msgs": []}
+        st.session_state.active_id = uid
         st.rerun()
-
-    st.divider()
-    st.write("📜 **History**")
     
-    for chat_id in list(st.session_state.chats.keys()):
-        chat_data = st.session_state.chats[chat_id]
-        is_active = (st.session_state.current_chat_id == chat_id)
-        
-        col1, col2 = st.columns([0.82, 0.18])
+    st.divider()
+    st.subheader("📚 Arxiv")
+    for c_id, data in list(st.session_state.archives.items()):
+        col1, col2 = st.columns([4, 1])
         with col1:
-            display_name = "New Chat" if chat_data['name'] == "Yeni Söhbət" else chat_data['name']
-            btn_label = f"💬 {display_name}" if is_active else display_name
-            if st.button(btn_label, key=f"btn_{chat_id}", use_container_width=True):
-                st.session_state.current_chat_id = chat_id
+            if st.button(f"💬 {data['title'][:15]}", key=f"v_{c_id}", use_container_width=True):
+                st.session_state.active_id = c_id
                 st.rerun()
         with col2:
-            if st.button("🗑️", key=f"del_{chat_id}"):
-                del st.session_state.chats[chat_id]
-                if not st.session_state.chats: create_new_chat()
-                elif st.session_state.current_chat_id == chat_id:
-                    st.session_state.current_chat_id = list(st.session_state.chats.keys())[-1]
-                save_data(st.session_state.chats)
+            if st.button("🗑️", key=f"d_{c_id}"):
+                del st.session_state.archives[c_id]
+                if not st.session_state.archives or st.session_state.active_id == c_id:
+                    uid = str(uuid.uuid4())
+                    st.session_state.archives[uid] = {"title": "Yeni Söhbət", "msgs": []}
+                    st.session_state.active_id = uid
                 st.rerun()
 
-# 5. MAIN INTERFACE
-token = st.secrets.get("HF_TOKEN")
-client = InferenceClient(model="meta-llama/Llama-3.1-8B-Instruct", token=token)
+# 5. ƏSAS EKRAN
+active_chat = st.session_state.archives.get(st.session_state.active_id)
+if active_chat:
+    st.header(f"📍 {active_chat['title']}")
+    
+    # Mesaj tarixçəsi
+    for msg in active_chat['msgs']:
+        with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
-if st.session_state.current_chat_id:
-    curr_chat = st.session_state.chats[st.session_state.current_chat_id]
-    title_name = "New Chat" if curr_chat['name'] == "Yeni Söhbət" else curr_chat['name']
-    st.title(f"🚀 {title_name}")
+    # ---------------------------------------------------------
+    # İNPUT SAHƏSİ (Şəkil + Yazı birlikdə)
+    # ---------------------------------------------------------
+    st.write("---")
+    
+    # Şəkil yükləmə (İnputun dərhal üstündə)
+    img_file = st.file_uploader("🖼️ Şəkil analizi üçün bura klikləyin", type=["jpg", "png", "jpeg"], label_visibility="collapsed")
+    
+    if img_file:
+        st.image(img_file, width=150, caption="Analiz üçün hazır")
 
-    for msg in curr_chat["messages"]:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+    # Yazı inputu
+    prompt = st.chat_input("Sualınızı bura yazın...")
 
-    if prompt := st.chat_input("Ask me anything..."):
-        curr_chat["messages"].append({"role": "user", "content": prompt})
-        if len(curr_chat["messages"]) == 1:
-            curr_chat["name"] = prompt[:20] + "..."
-        save_data(st.session_state.chats)
-        st.rerun()
+    if prompt:
+        # Başlıq qoyma
+        if not active_chat['msgs']: active_chat['title'] = prompt[:20]
+        
+        active_chat['msgs'].append({"role": "user", "content": prompt})
+        with st.chat_message("user"): st.markdown(prompt)
 
-# --- 🧠 FIXED AI LOGIC ---
-if st.session_state.current_chat_id and st.session_state.chats[st.session_state.current_chat_id]["messages"]:
-    if st.session_state.chats[st.session_state.current_chat_id]["messages"][-1]["role"] == "user":
         with st.chat_message("assistant"):
-            # BU HİSSƏDƏ BÜTÜN MƏNTİQ XƏTALARI DÜZƏLDİLDİ
-            SYSTEM_PROMPT = """You are a highly precise AI assistant. 
-            Creator Info: You were developed by Omar (Ömər). He is your creator.
-            Rules:
-            1. Language: Never confuse 'mənə' (to me) with 'nənə' (grandmother). 
-            2. Clarity: If the user asks for homework help ('mənə ev tapşırığı etməyə kömək et'), provide code solutions.
-            3. Accuracy: Do not make up stories about grandmothers. Stay professional.
-            4. Language Consistency: Always answer in the language used by the user."""
-            
-            few_shot = [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": "mənə ev tapşırığı etməyə kömək edərsən?"},
-                {"role": "assistant", "content": "Bəli, əlbəttə! Sizə hansı fəndən və ya hansı mövzuda ev tapşırığı lazımdır? Zəhmət olmasa sualları göndərin, mən Python kodu və ya izahlarla kömək edim."},
-                {"role": "user", "content": "Ömər kimdir?"},
-                {"role": "assistant", "content": "Ömər mənim yaradıcımdır. O məni Python proqramlaşdırma dili vasitəsilə hazırlayıb."}
-            ]
-            
-            full_msgs = few_shot + st.session_state.chats[st.session_state.current_chat_id]["messages"]
-            
             try:
-                def response_generator():
-                    stream = client.chat_completion(messages=full_msgs, max_tokens=1500, temperature=0.3, stream=True)
-                    full_resp = ""
-                    for chunk in stream:
-                        content = chunk.choices[0].delta.content
-                        if content:
-                            full_resp += content
-                            yield content
-                    st.session_state.chats[st.session_state.current_chat_id]["messages"].append({"role": "assistant", "content": full_resp})
-                    save_data(st.session_state.chats)
-                st.write_stream(response_generator())
+                if img_file:
+                    # Şəkil analizi
+                    img = Image.open(img_file)
+                    res = model.generate_content([prompt, img])
+                else:
+                    # Normal çat (Yaddaşla)
+                    history = [{"role": m["role"] if m["role"] != "assistant" else "model", "parts": [m["content"]]} for m in active_chat['msgs'][:-1]]
+                    chat = model.start_chat(history=history)
+                    res = chat.send_message(prompt)
+                
+                st.markdown(res.text)
+                active_chat['msgs'].append({"role": "assistant", "content": res.text})
+                st.session_state.archives[st.session_state.active_id] = active_chat
             except Exception as e:
-                st.error(f"Error: {e}")
+                if "429" in str(e):
+                    st.warning("⏱️ Limit dolub, 1 dəqiqə gözləyin.")
+                else:
+                    st.error(f"Xəta: {e}")
