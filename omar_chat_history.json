@@ -1,6 +1,19 @@
 {
-    "69774989-325a-4432-ad41-f635d0fd43c5": {
-        "title": "Yeni Söhbət",
-        "msgs": []
+    "445d59ce-5922-4be3-94c5-410f035ddc90": {
+        "title": "salam",
+        "msgs": [
+            {
+                "role": "user",
+                "content": "salam"
+            },
+            {
+                "role": "user",
+                "content": "salam"
+            },
+            {
+                "role": "assistant",
+                "content": "Salam, necəsən? Bu gün sənə necə kömək edə bilərəm? 😊"
+            }
+        ]
     }
 }
